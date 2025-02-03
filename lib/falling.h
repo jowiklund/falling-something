@@ -23,7 +23,7 @@ typedef struct {
 pixel parse_pixel(uint8_t data);
 uint8_t create_pixel(uint8_t type, uint8_t flags);
 
-void physics_powder(
+int physics_powder(
 	buffer *buf,
 	pixel p,
 	int64_t row,
@@ -33,7 +33,7 @@ void physics_powder(
 	int seed
 );
 
-void physics_liquid(
+int physics_liquid(
 	buffer *buf,
 	pixel p,
 	int64_t row,

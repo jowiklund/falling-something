@@ -107,6 +107,11 @@ int main() {
 			}
 		}
 
+		int64_t minX = p_width;
+		int64_t minY = p_height;
+		int64_t maxX = 0;
+		int64_t maxY = 0;
+
 		for (int64_t row = 0; row < p_height; row++) {
 			int seed = rand();
 			int even = row % 2;
@@ -115,6 +120,7 @@ int main() {
 				even ? (col < p_width) : (col > 0);
 				(even ? col++ : col--)
 			) {
+				int did_move = 0;
 				pixel p = parse_pixel(buf->rows[row].cells[col]);
 				if (p.data & P_NEW) {
 					buf->rows[row].cells[col] = p.data & ~P_NEW;
@@ -140,32 +146,48 @@ int main() {
 				}
 
 				if (p.material == M_SAND) {
-					physics_powder(buf, p, row, col, p_height, p_width, seed);
-					continue;
+					did_move = physics_powder(buf, p, row, col, p_height, p_width, seed);
 				}
 				if (p.material == M_WATER) {
-					physics_liquid(buf, p, row, col, p_height, p_width, 5, seed);
-					continue;
+					did_move = physics_liquid(buf, p, row, col, p_height, p_width, 5, seed);
+				}
+
+				if (did_move) {
+					if (col < minX) minX = max(col - 5, 0);
+					if (row < minY) minY = max(row - 5, 0);
+					if (col > maxX) maxX = min(col + 5, p_width);
+					if (row > maxY) maxY = min(row + 5, p_height);
 				}
 			}
 		}
+
+		// if (
+		// 	minX < p_width ||
+		// 	minY < p_height ||
+		// 	maxX > 0 ||
+		// 	maxY > 0
+		// ) {
+		// 	DrawRectangleLines(minX * pixelSize, minY * pixelSize, (maxX-minX)*pixelSize, (maxY-minY)*pixelSize, GREEN);
+		// }
 
 		if (frameTime >= 0.032) {
 			for (int64_t row = 0; row < p_height-1; row++) {
 				for (int64_t col = 0; col < p_width-1; col++) {
-					pixel p = parse_pixel(buf->rows[row].cells[col]);
-					if (p.data & P_FROZEN) continue;
-					DrawRectangle(
-						col*pixelSize,
-						row*pixelSize,
-						pixelSize,
-						pixelSize,
-						p.data & P_SPECIAL ? M_colors_special[p.material] : M_colors[p.material]
-					);
+					if (row > minY && row < maxY && col > minX && col < maxX) {
+						pixel p = parse_pixel(buf->rows[row].cells[col]);
+						DrawRectangle(
+							col*pixelSize,
+							row*pixelSize,
+							pixelSize,
+							pixelSize,
+							p.data & P_SPECIAL ? M_colors_special[p.material] : M_colors[p.material]
+						);
+					}
 				}
 			}
 		}
 
+		DrawRectangle( 10, 10, 100, 50, BLACK);
 		char fps[50];
 		sprintf(fps, "%d", GetFPS());
 		DrawText(fps, 20, 20, 30, RAYWHITE);

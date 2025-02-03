@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <raylib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 const uint8_t P_FROZEN = 1U<<5;
 const uint8_t P_NEW = 1U<<6;
@@ -44,7 +45,7 @@ pixel parse_pixel(uint8_t data) {
 	};
 }
 
-void physics_powder(
+int physics_powder(
 	buffer *buf,
 	pixel p,
 	int64_t row,
@@ -62,7 +63,7 @@ void physics_powder(
 		) {
 			buf->rows[row].cells[col] = below.data | P_NEW;
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
-			return;
+			return 1;
 		}
 		int move_left = (col > 0 && (seed % 2));
 		int direction = move_left ? -1 : 1;
@@ -71,12 +72,13 @@ void physics_powder(
 		if (M_densities[b_left.material] < density) {
 			buf->rows[row].cells[col] = b_left.data | P_NEW;
 			buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
-			return;
+			return 1;
 		}
 	}
+	return 0;
 }
 
-void physics_liquid(
+int physics_liquid(
 	buffer *buf,
 	pixel p,
 	int64_t row,
@@ -93,7 +95,7 @@ void physics_liquid(
 		if (M_densities[below.material] < density) {
 			buf->rows[row].cells[col] = below.data;
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
-			return;
+			return 1;
 		}
 
 		for (int i = 0; i < fluidity; i++) {
@@ -104,14 +106,15 @@ void physics_liquid(
 			if (M_densities[b_dir.material] < density) {
 				buf->rows[row].cells[col] = b_dir.data;
 				buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
-				return;
+				return 1;
 			}
 			pixel dir = parse_pixel(buf->rows[row].cells[col + direction]);
 			if (M_densities[dir.material] < density) {
 				buf->rows[row].cells[col] = dir.data;
 				buf->rows[row].cells[col + direction] = p.data | P_NEW;
-				return;
+				return 1;
 			}
 		}
 	}
+	return 0;
 }
