@@ -61,7 +61,6 @@ int32_t queue_len(points_queue *q) {
 
 int main() {
 	const int pixelSize = 6;
-	SetTargetFPS(60);
 
 	int width = 2560;
 	int height = (int)width * 0.625;
@@ -80,8 +79,8 @@ int main() {
 
 	InitWindow(width, height, "Fallingsomething");
 
-	for (int64_t row = p_height-1; row > 0; row--) {
-		for (int64_t col = p_width-1; col > 0; col--) {
+	for (int64_t row = 0; row < p_height; row++) {
+		for (int64_t col = 0; col < p_width; col++) {
 			buf->rows[row].cells[col] = P_FROZEN;
 		}
 	}
@@ -98,11 +97,8 @@ int main() {
 		if (IsKeyPressed(KEY_TWO)) currentMaterial = 2;
 
 		if (IsMouseButtonDown(0)) {
-			for (int64_t row = 0; row < p_height-1; row++) {
-				for (int64_t col = 0; col < p_width-1; col++) {
-					if (rand() % 2) {
-						continue;
-					}
+			for (int64_t row = 0; row < p_height; row++) {
+				for (int64_t col = 0; col < p_width; col++) {
 					if ((col - mX) * (col - mX) + (row - mY) * (row - mY) <= radius * radius) {
 						buf->rows[row].cells[col] = 
 							currentMaterial | (rand() % 2 ? P_NEW : P_NEW|P_SPECIAL);
@@ -111,10 +107,19 @@ int main() {
 			}
 		}
 
-		for (int64_t row = p_height-1; row > 0; row--) {
-			for (int64_t col = p_width-1; col > 0; col--) {
-				int seed = rand();
+		for (int64_t row = 0; row < p_height; row++) {
+			int seed = rand();
+			int even = row % 2;
+			for (
+				int64_t col = even ? 0 : p_width;
+				even ? (col < p_width) : (col > 0);
+				(even ? col++ : col--)
+			) {
 				pixel p = parse_pixel(buf->rows[row].cells[col]);
+				if (p.data & P_NEW) {
+					buf->rows[row].cells[col] = p.data & ~P_NEW;
+					continue;
+				}
 				if (p.material == M_AIR) {
 					if (row > 0) {
 						pixel p = parse_pixel(buf->rows[row-1].cells[col]);
@@ -139,7 +144,7 @@ int main() {
 					continue;
 				}
 				if (p.material == M_WATER) {
-					physics_liquid(buf, p, row, col, p_height, p_width, seed);
+					physics_liquid(buf, p, row, col, p_height, p_width, 5, seed);
 					continue;
 				}
 			}

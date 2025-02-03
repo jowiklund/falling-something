@@ -1,6 +1,7 @@
 #include "falling.h"
 #include <assert.h>
 #include <raylib.h>
+#include <stdint.h>
 
 const uint8_t P_FROZEN = 1U<<5;
 const uint8_t P_NEW = 1U<<6;
@@ -63,40 +64,14 @@ void physics_powder(
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
 			return;
 		}
-
 		int move_left = (col > 0 && (seed % 2));
-		int move_right = (col < p_width - 1 && !move_left);
+		int direction = move_left ? -1 : 1;
 
-		if (move_left) {
-			pixel b_left = parse_pixel(buf->rows[row + 1].cells[col - 1]);
-			if (M_densities[b_left.material] < density) {
-				buf->rows[row].cells[col] = b_left.data | P_NEW;
-				buf->rows[row + 1].cells[col - 1] = p.data | P_NEW;
-				return;
-			}
-		}
-
-		if (move_right) {
-			pixel b_right = parse_pixel(buf->rows[row + 1].cells[col + 1]);
-			if (M_densities[b_right.material] < density) {
-				buf->rows[row].cells[col] = b_right.data | P_NEW;
-				buf->rows[row + 1].cells[col + 1] = p.data | P_NEW;
-				return;
-			}
-		}
-	}
-
-	if (!(p.data & P_NEW) && row > 0 && col > 0 && col < p_width - 1) {
-		pixel above = parse_pixel(buf->rows[row - 1].cells[col]);
-		pixel left = parse_pixel(buf->rows[row].cells[col - 1]);
-		pixel right = parse_pixel(buf->rows[row].cells[col + 1]);
-
-		if (
-			above.material &&
-			left.material &&
-			right.material
-		) {
-			buf->rows[row].cells[col] = p.data | P_FROZEN;
+		pixel b_left = parse_pixel(buf->rows[row + 1].cells[col + direction]);
+		if (M_densities[b_left.material] < density) {
+			buf->rows[row].cells[col] = b_left.data | P_NEW;
+			buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
+			return;
 		}
 	}
 }
@@ -108,64 +83,35 @@ void physics_liquid(
 	int64_t col,
 	int p_height,
 	int p_width,
+	uint8_t fluidity,
 	int seed
 ) {
 	if (row < p_height - 1) {
-		pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
 		uint8_t density = M_densities[p.material];
 
+		pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
 		if (M_densities[below.material] < density) {
 			buf->rows[row].cells[col] = below.data;
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
 			return;
 		}
 
-		int move_left = (col > 0 && (seed % 2));
-		int move_right = (col < p_width - 1 && !move_left);
+		for (int i = 0; i < fluidity; i++) {
+			int move_left = (col > 0 && (seed % 2));
+			int direction = move_left ? -(i) : i;
 
-		if (move_left) {
-			pixel b_left = parse_pixel(buf->rows[row + 1].cells[col - 1]);
-			if (M_densities[b_left.material] < density) {
-				buf->rows[row].cells[col] = b_left.data;
-				buf->rows[row + 1].cells[col - 1] = p.data | P_NEW;
+			pixel b_dir = parse_pixel(buf->rows[row + 1].cells[col + direction]);
+			if (M_densities[b_dir.material] < density) {
+				buf->rows[row].cells[col] = b_dir.data;
+				buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
 				return;
 			}
-			pixel left = parse_pixel(buf->rows[row].cells[col - 1]);
-			if (M_densities[left.material] < density) {
-				buf->rows[row].cells[col] = left.data;
-				buf->rows[row].cells[col - 1] = p.data | P_NEW;
+			pixel dir = parse_pixel(buf->rows[row].cells[col + direction]);
+			if (M_densities[dir.material] < density) {
+				buf->rows[row].cells[col] = dir.data;
+				buf->rows[row].cells[col + direction] = p.data | P_NEW;
 				return;
 			}
-		}
-
-		if (move_right) {
-			pixel b_right = parse_pixel(buf->rows[row + 1].cells[col + 1]);
-			if (M_densities[b_right.material] < density) {
-				buf->rows[row].cells[col] = b_right.data;
-				buf->rows[row + 1].cells[col + 1] = p.data | P_NEW;
-				return;
-			}
-			pixel right = parse_pixel(buf->rows[row].cells[col + 1]);
-			if (M_densities[right.material] < density) {
-				buf->rows[row].cells[col] = right.data;
-				buf->rows[row].cells[col + 1] = p.data | P_NEW;
-				return;
-			}
-		}
-	}
-
-	if (!(p.data & P_NEW) && row > 0 && col > 0 && col < p_width - 1) {
-		pixel above = parse_pixel(buf->rows[row - 1].cells[col]);
-		pixel left = parse_pixel(buf->rows[row].cells[col - 1]);
-		pixel right = parse_pixel(buf->rows[row].cells[col + 1]);
-
-		if (
-			above.material && 
-			left.material && 
-			right.material
-		) {
-			buf->rows[row].cells[col] = p.data | P_FROZEN;
 		}
 	}
 }
-

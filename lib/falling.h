@@ -40,6 +40,7 @@ void physics_liquid(
 	int64_t col,
 	int p_height,
 	int p_width,
+	uint8_t fluidity,
 	int seed
 );
 
