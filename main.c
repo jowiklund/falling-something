@@ -101,7 +101,7 @@ int main() {
 				for (int64_t col = 0; col < p_width; col++) {
 					if ((col - mX) * (col - mX) + (row - mY) * (row - mY) <= radius * radius) {
 						buf->rows[row].cells[col] = 
-							currentMaterial | (rand() % 2 ? P_NEW : P_NEW|P_SPECIAL);
+							currentMaterial | (rand() % 2 ? 0 : P_SPECIAL);
 					}
 				}
 			}
