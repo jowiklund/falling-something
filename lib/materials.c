@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <raylib.h>
 #include <stdint.h>
-#include <stdio.h>
 
 const uint8_t P_FROZEN = 1U<<5;
 const uint8_t P_NEW = 1U<<6;
@@ -90,6 +89,7 @@ int physics_liquid(
 ) {
 	if (row < p_height - 1) {
 		uint8_t density = M_densities[p.material];
+		int move_left = (col > 0 && (seed % 2));
 
 		pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
 		if (M_densities[below.material] < density) {
@@ -98,20 +98,30 @@ int physics_liquid(
 			return 1;
 		}
 
-		for (int i = 0; i < fluidity; i++) {
-			int move_left = (col > 0 && (seed % 2));
-			int direction = move_left ? -(i) : i;
+		int movement = move_left ? -1 : 1;
+		pixel b_dir = parse_pixel(buf->rows[row + 1].cells[col + movement]);
+		if (M_densities[b_dir.material] < density) {
+			buf->rows[row].cells[col] = b_dir.data;
+			buf->rows[row + 1].cells[col + movement] = p.data | P_NEW;
+			return 1;
+		}
 
-			pixel b_dir = parse_pixel(buf->rows[row + 1].cells[col + direction]);
-			if (M_densities[b_dir.material] < density) {
-				buf->rows[row].cells[col] = b_dir.data;
-				buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
-				return 1;
+		for (int i = 1; i < fluidity; i++) {
+			int movement = move_left ? -(i) : i;
+			pixel next = parse_pixel(buf->rows[row].cells[col + movement]);
+			if (i < fluidity-1) {
+				if (M_densities[next.material] < density) {
+					continue;
+				} else {
+					i--;
+					buf->rows[row].cells[col] = parse_pixel(buf->rows[row].cells[col + move_left ? -(i) : i]).data;
+					buf->rows[row].cells[col + (move_left ? -(i) : i)] = p.data | P_NEW;
+					return 1;
+				}
 			}
-			pixel dir = parse_pixel(buf->rows[row].cells[col + direction]);
-			if (M_densities[dir.material] < density) {
-				buf->rows[row].cells[col] = dir.data;
-				buf->rows[row].cells[col + direction] = p.data | P_NEW;
+			if (M_densities[next.material] < density) {
+				buf->rows[row].cells[col] = next.data;
+				buf->rows[row].cells[col + movement] = p.data | P_NEW;
 				return 1;
 			}
 		}
