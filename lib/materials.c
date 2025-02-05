@@ -37,16 +37,16 @@ uint8_t create_pixel(uint8_t type, uint8_t flags) {
 	return type | flags;
 }
 
-pixel parse_pixel(uint8_t data) {
-	return (pixel){
+Pixel parse_pixel(uint8_t data) {
+	return (Pixel){
 		.data = data,
 		.material = data & MATERIAL_MASK
 	};
 }
 
 int physics_powder(
-	buffer *buf,
-	pixel p,
+	Buffer *buf,
+	Pixel p,
 	int64_t row,
 	int64_t col,
 	int p_height,
@@ -54,22 +54,23 @@ int physics_powder(
 	int seed
 ) {
 	if (row < p_height - 1) {
-		pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
+		Pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
 		uint8_t density = M_densities[p.material];
+		char *p_current = &buf->rows[row].cells[col];
 
 		if (
 			M_densities[below.material] < density
 		) {
-			buf->rows[row].cells[col] = below.data | P_NEW;
+			*p_current = below.data | P_NEW;
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
 			return 1;
 		}
 		int move_left = (col > 0 && (seed % 2));
 		int direction = move_left ? -1 : 1;
 
-		pixel b_left = parse_pixel(buf->rows[row + 1].cells[col + direction]);
+		Pixel b_left = parse_pixel(buf->rows[row + 1].cells[col + direction]);
 		if (M_densities[b_left.material] < density) {
-			buf->rows[row].cells[col] = b_left.data | P_NEW;
+			*p_current = b_left.data | P_NEW;
 			buf->rows[row + 1].cells[col + direction] = p.data | P_NEW;
 			return 1;
 		}
@@ -78,8 +79,8 @@ int physics_powder(
 }
 
 int physics_liquid(
-	buffer *buf,
-	pixel p,
+	Buffer *buf,
+	Pixel p,
 	int64_t row,
 	int64_t col,
 	int p_height,
@@ -90,37 +91,38 @@ int physics_liquid(
 	if (row < p_height - 1) {
 		uint8_t density = M_densities[p.material];
 		int move_left = (col > 0 && (seed % 2));
+		char *p_current = &buf->rows[row].cells[col];
 
-		pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
+		Pixel below = parse_pixel(buf->rows[row + 1].cells[col]);
 		if (M_densities[below.material] < density) {
-			buf->rows[row].cells[col] = below.data;
+			*p_current = below.data;
 			buf->rows[row + 1].cells[col] = p.data | P_NEW;
 			return 1;
 		}
 
 		int movement = move_left ? -1 : 1;
-		pixel b_dir = parse_pixel(buf->rows[row + 1].cells[col + movement]);
+		Pixel b_dir = parse_pixel(buf->rows[row + 1].cells[col + movement]);
 		if (M_densities[b_dir.material] < density) {
-			buf->rows[row].cells[col] = b_dir.data;
+			*p_current = b_dir.data;
 			buf->rows[row + 1].cells[col + movement] = p.data | P_NEW;
 			return 1;
 		}
 
 		for (int i = 1; i < fluidity; i++) {
 			int movement = move_left ? -(i) : i;
-			pixel next = parse_pixel(buf->rows[row].cells[col + movement]);
+			Pixel next = parse_pixel(buf->rows[row].cells[col + movement]);
 			if (i < fluidity-1) {
 				if (M_densities[next.material] < density) {
 					continue;
 				} else {
 					i--;
-					buf->rows[row].cells[col] = parse_pixel(buf->rows[row].cells[col + move_left ? -(i) : i]).data;
+					*p_current = parse_pixel(buf->rows[row].cells[col + move_left ? -(i) : i]).data;
 					buf->rows[row].cells[col + (move_left ? -(i) : i)] = p.data | P_NEW;
 					return 1;
 				}
 			}
 			if (M_densities[next.material] < density) {
-				buf->rows[row].cells[col] = next.data;
+				*p_current = next.data;
 				buf->rows[row].cells[col + movement] = p.data | P_NEW;
 				return 1;
 			}
